@@ -1,7 +1,12 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
   runApp(const AmirZXApp());
@@ -36,6 +41,18 @@ class _Crimson {
   static const Color dim = Color(0xFFA58A91);
 }
 
+class ServiceLink {
+  final String name;
+  final String key;
+  final String url;
+
+  const ServiceLink({
+    required this.name,
+    required this.key,
+    required this.url,
+  });
+}
+
 class TerminalHome extends StatefulWidget {
   const TerminalHome({super.key});
 
@@ -57,6 +74,29 @@ class _TerminalHomeState extends State<TerminalHome>
   int _step = 0;
   bool _isFa = false;
   int _hudMode = 0;
+  bool _awaitingSudoUser = false;
+  bool _awaitingSudoPass = false;
+  bool _awaitingServiceName = false;
+  bool _awaitingServiceUrl = false;
+  bool _sudoUnlocked = false;
+  String _sudoUserInput = '';
+  String _pendingServiceName = '';
+
+  final List<ServiceLink> _services = <ServiceLink>[
+    const ServiceLink(
+      name: 'Proxmox',
+      key: 'proxmox',
+      url: 'https://proxmox.local',
+    ),
+    const ServiceLink(
+      name: 'Portainer',
+      key: 'portainer',
+      url: 'https://portainer.local',
+    ),
+  ];
+
+  static const int _userHash = 0xC6948D76;
+  static const int _passHash = 0xEF10104C;
 
   static const List<String> _bootEn = [
     r'[boot] dark-neural-core .......... online',
@@ -170,26 +210,125 @@ class _TerminalHomeState extends State<TerminalHome>
     _scrollToBottom();
   }
 
+  int _fnv1aHash(String value) {
+    int hash = 0x811C9DC5;
+    for (final byte in utf8.encode(value)) {
+      hash ^= byte;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash;
+  }
+
+  String _serviceKey(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+
+  void _openUrl(String url) {
+    if (kIsWeb) {
+      html.window.open(url, '_blank');
+    }
+  }
+
   void _executeCommand(String raw) {
     final cmd = raw.trim();
     if (cmd.isEmpty) return;
 
     _typingTimer?.cancel();
     final normalized = cmd.toLowerCase();
+
+    if (_awaitingSudoUser) {
+      _awaitingSudoUser = false;
+      _awaitingSudoPass = true;
+      _sudoUserInput = cmd;
+      _writeBlock([
+        '${_prompt()} sudo',
+        _isFa ? 'username received.' : 'username received.',
+        _isFa ? 'password:' : 'password:',
+      ]);
+      return;
+    }
+
+    if (_awaitingSudoPass) {
+      _awaitingSudoPass = false;
+      final bool ok = _fnv1aHash(_sudoUserInput) == _userHash &&
+          _fnv1aHash(cmd) == _passHash;
+      if (ok) {
+        _sudoUnlocked = true;
+        _writeBlock([
+          '${_prompt()} sudo ********',
+          _isFa ? 'sudo unlocked. dashboard available.' : 'sudo unlocked. dashboard available.',
+          _isFa
+              ? 'commands: service add | service list | open <service>'
+              : 'commands: service add | service list | open <service>',
+        ]);
+      } else {
+        _sudoUnlocked = false;
+        _writeBlock([
+          '${_prompt()} sudo ********',
+          _isFa ? 'authentication failed.' : 'authentication failed.',
+        ]);
+      }
+      return;
+    }
+
+    if (_awaitingServiceName) {
+      _pendingServiceName = cmd;
+      _awaitingServiceName = false;
+      _awaitingServiceUrl = true;
+      _writeBlock([
+        '${_prompt()} service add',
+        _isFa ? 'service name set: $_pendingServiceName' : 'service name set: $_pendingServiceName',
+        _isFa ? 'enter service URL:' : 'enter service URL:',
+      ]);
+      return;
+    }
+
+    if (_awaitingServiceUrl) {
+      _awaitingServiceUrl = false;
+      final String url = cmd;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        _writeBlock([
+          '${_prompt()} service add $_pendingServiceName $url',
+          _isFa ? 'invalid URL. use http:// or https://' : 'invalid URL. use http:// or https://',
+        ]);
+        return;
+      }
+      final service = ServiceLink(
+        name: _pendingServiceName,
+        key: _serviceKey(_pendingServiceName),
+        url: url,
+      );
+      setState(() {
+        _services.removeWhere((s) => s.key == service.key);
+        _services.add(service);
+      });
+      _writeBlock([
+        '${_prompt()} service add ${service.name} ${service.url}',
+        _isFa ? 'service saved.' : 'service saved.',
+      ]);
+      return;
+    }
+
     final out = <String>['${_prompt()} $cmd'];
 
     switch (normalized) {
       case 'help':
         out.addAll(_isFa
             ? [
-                'commands: help | whoami | skills | projects | contact | clear | lang',
+                'commands: help | whoami | skills | projects | contact | clear | lang | sudo',
                 'نکته: از دکمه‌های سریع هم می‌تونی استفاده کنی.',
               ]
             : [
-                'commands: help | whoami | skills | projects | contact | clear | lang',
+                'commands: help | whoami | skills | projects | contact | clear | lang | sudo',
                 'tip: quick-action buttons are interactive too.',
               ]);
         break;
+      case 'sudo':
+        _awaitingSudoUser = true;
+        _writeBlock([
+          '${_prompt()} sudo',
+          _isFa ? 'username:' : 'username:',
+        ]);
+        return;
       case 'whoami':
         out.addAll(_isFa
             ? [
@@ -240,9 +379,74 @@ class _TerminalHomeState extends State<TerminalHome>
         _appendPrompt();
         return;
       default:
-        out.add(_isFa
-            ? 'command not found: $cmd'
-            : 'command not found: $cmd');
+        if (normalized == 'service list') {
+          if (!_sudoUnlocked) {
+            out.add(_isFa ? 'access denied. run sudo first.' : 'access denied. run sudo first.');
+          } else if (_services.isEmpty) {
+            out.add(_isFa ? 'no services registered.' : 'no services registered.');
+          } else {
+            out.add(_isFa ? 'services:' : 'services:');
+            for (final s in _services) {
+              out.add(' - ${s.name} => ${s.url}');
+            }
+          }
+        } else if (normalized.startsWith('service add')) {
+          if (!_sudoUnlocked) {
+            out.add(_isFa ? 'access denied. run sudo first.' : 'access denied. run sudo first.');
+          } else {
+            final parts = cmd.split(RegExp(r'\\s+'));
+            if (parts.length >= 4) {
+              final url = parts.last;
+              final name = parts.sublist(2, parts.length - 1).join(' ');
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                out.add(_isFa
+                    ? 'invalid URL. use http:// or https://'
+                    : 'invalid URL. use http:// or https://');
+              } else {
+                final service = ServiceLink(
+                  name: name,
+                  key: _serviceKey(name),
+                  url: url,
+                );
+                setState(() {
+                  _services.removeWhere((s) => s.key == service.key);
+                  _services.add(service);
+                });
+                out.add(_isFa ? 'service saved.' : 'service saved.');
+              }
+            } else {
+              _awaitingServiceName = true;
+              _writeBlock([
+                '${_prompt()} service add',
+                _isFa ? 'enter service name:' : 'enter service name:',
+              ]);
+              return;
+            }
+          }
+        } else if (normalized.startsWith('open ')) {
+          if (!_sudoUnlocked) {
+            out.add(_isFa ? 'access denied. run sudo first.' : 'access denied. run sudo first.');
+          } else {
+            final key = _serviceKey(cmd.substring(5));
+            ServiceLink? service;
+            for (final item in _services) {
+              if (item.key == key) {
+                service = item;
+                break;
+              }
+            }
+            if (service == null) {
+              out.add(_isFa ? 'service not found.' : 'service not found.');
+            } else {
+              _openUrl(service.url);
+              out.add(_isFa
+                  ? 'opening ${service.name} -> ${service.url}'
+                  : 'opening ${service.name} -> ${service.url}');
+            }
+          }
+        } else {
+          out.add(_isFa ? 'command not found: $cmd' : 'command not found: $cmd');
+        }
     }
 
     _writeBlock(out);
@@ -289,10 +493,19 @@ class _TerminalHomeState extends State<TerminalHome>
                                 scroll: _scroll,
                                 isFa: _isFa,
                                 pulse: _pulseController,
+                                sudoUnlocked: _sudoUnlocked,
+                                services: _services,
                                 commandController: _cmdController,
                                 onToggleLanguage: () {
                                   setState(() => _isFa = !_isFa);
                                   _startBootTyping();
+                                },
+                                onOpenService: (service) {
+                                  _openUrl(service.url);
+                                  _writeBlock([
+                                    '${_prompt()} open ${service.key}',
+                                    'opening ${service.name} -> ${service.url}',
+                                  ]);
                                 },
                                 onRunCommand: _executeCommand,
                               )
@@ -317,10 +530,19 @@ class _TerminalHomeState extends State<TerminalHome>
                                       scroll: _scroll,
                                       isFa: _isFa,
                                       pulse: _pulseController,
+                                      sudoUnlocked: _sudoUnlocked,
+                                      services: _services,
                                       commandController: _cmdController,
                                       onToggleLanguage: () {
                                         setState(() => _isFa = !_isFa);
                                         _startBootTyping();
+                                      },
+                                      onOpenService: (service) {
+                                        _openUrl(service.url);
+                                        _writeBlock([
+                                          '${_prompt()} open ${service.key}',
+                                          'opening ${service.name} -> ${service.url}',
+                                        ]);
                                       },
                                       onRunCommand: _executeCommand,
                                     ),
@@ -563,8 +785,11 @@ class _TerminalPanel extends StatelessWidget {
   final ScrollController scroll;
   final bool isFa;
   final Animation<double> pulse;
+  final bool sudoUnlocked;
+  final List<ServiceLink> services;
   final TextEditingController commandController;
   final VoidCallback onToggleLanguage;
+  final ValueChanged<ServiceLink> onOpenService;
   final ValueChanged<String> onRunCommand;
 
   const _TerminalPanel({
@@ -572,8 +797,11 @@ class _TerminalPanel extends StatelessWidget {
     required this.scroll,
     required this.isFa,
     required this.pulse,
+    required this.sudoUnlocked,
+    required this.services,
     required this.commandController,
     required this.onToggleLanguage,
+    required this.onOpenService,
     required this.onRunCommand,
   });
 
@@ -632,6 +860,50 @@ class _TerminalPanel extends StatelessWidget {
                 _CmdChip(label: isFa ? 'clear' : 'clear', onTap: () => onRunCommand('clear')),
               ],
             ),
+            if (sudoUnlocked && services.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: isFa ? Alignment.centerRight : Alignment.centerLeft,
+                child: Text(
+                  isFa ? 'quick services (sudo):' : 'quick services (sudo):',
+                  style: TextStyle(
+                    color: _Crimson.glow,
+                    fontFamily: font,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: services
+                    .map(
+                      (service) => InkWell(
+                        onTap: () => onOpenService(service),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0x551A0B10),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _Crimson.blood, width: 1),
+                          ),
+                          child: Text(
+                            service.name,
+                            style: TextStyle(
+                              color: _Crimson.text,
+                              fontFamily: font,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
             const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
