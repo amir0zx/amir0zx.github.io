@@ -17,11 +17,23 @@ class AmirZXApp extends StatelessWidget {
       title: 'amirzx / cyberslayer',
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF050506),
+        scaffoldBackgroundColor: const Color(0xFF050405),
       ),
       home: const TerminalHome(),
     );
   }
+}
+
+class _Crimson {
+  static const Color bg = Color(0xFF050405);
+  static const Color bg2 = Color(0xFF0B0709);
+  static const Color panel = Color(0xEE0A0809);
+  static const Color edge = Color(0xFF2B0D15);
+  static const Color crimson = Color(0xFF6F0018);
+  static const Color blood = Color(0xFF8C1128);
+  static const Color glow = Color(0xFFC22B45);
+  static const Color text = Color(0xFFECCED4);
+  static const Color dim = Color(0xFFA58A91);
 }
 
 class TerminalHome extends StatefulWidget {
@@ -35,90 +47,55 @@ class _TerminalHomeState extends State<TerminalHome>
     with TickerProviderStateMixin {
   final List<String> _lines = <String>[];
   final ScrollController _scroll = ScrollController();
+  final TextEditingController _cmdController = TextEditingController();
 
   late final AnimationController _bgController;
   late final AnimationController _pulseController;
+  late final AnimationController _radarController;
 
   Timer? _typingTimer;
   int _step = 0;
   bool _isFa = false;
+  int _hudMode = 0;
 
-  static const List<String> _scriptEn = [
-    r'[boot] cybercore init .......... ok',
-    r'[boot] thermal profile ......... stable',
-    r'[boot] neural ui ............... online',
+  static const List<String> _bootEn = [
+    r'[boot] dark-neural-core .......... online',
+    r'[boot] crimson-theme ............. loaded',
+    r'[boot] hud matrix ................ synced',
     r'',
     r'identity:: Amir Talebi',
     r'alias::: amirzx / cyberslayer',
-    r'role:::: Linux | Networking | DevOps | Coding',
-    r'mood:::: dark sci-fi / metal / rave',
+    r'role:::: Linux | Networking | DevOps | Software',
+    r'vibe:::: dark sci-fi | metalhead | rave',
     r'',
-    r'-- SYSTEM MAP --',
+    r'-- OPERATIONS FRAME --',
     r'os ........... CachyOS x86_64',
-    r'host ......... ThinkPad E15 Gen 2',
     r'kernel ....... 6.18.8-1-cachyos',
     r'cpu .......... AMD Ryzen 5 4500U',
-    r'gpu .......... Radeon Vega iGPU',
     r'ram .......... 14.35 GiB',
-    r'desktop ...... KDE Plasma 6.5.5 | KWin Wayland',
-    r'displays ..... 24" external + 16" built-in',
+    r'desktop ...... KDE Plasma 6.5.5 / KWin Wayland',
     r'',
-    r'-- SPECIALIZATION --',
-    r'> Linux optimization + troubleshooting',
-    r'> Container networking + service routing',
-    r'> DNS, reverse proxy, infra hardening',
-    r'> CI/CD automation + deployment flows',
-    r'> Bash, Python, Rust workflows',
-    r'',
-    r'-- ACTIVE PROJECT --',
-    r'project ...... waydroid-image-sw',
-    r'status ....... reborn/public',
-    r'effect ....... zero-friction A13/TV switching',
-    r'',
-    r'quote> Black core. Red edge. Sharp tools.',
-    r'contact> github.com/amir0zx',
-    r'location> Iran',
-    r'',
-    r'root@cyberpad:~$ _',
+    r'type: help',
   ];
 
-  static const List<String> _scriptFa = [
-    r'[boot] راه‌اندازی هسته .......... اوکی',
-    r'[boot] پروفایل حرارتی .......... پایدار',
-    r'[boot] رابط عصبی ............... فعال',
+  static const List<String> _bootFa = [
+    r'[boot] هسته نئوتاریک ............ فعال',
+    r'[boot] تم خون‌سرخ ............... بارگذاری شد',
+    r'[boot] ماتریس HUD ............... سینک شد',
     r'',
-    r'هویت:: امیر طالبی',
+    r'هویت:: Amir Talebi',
     r'نام::: amirzx / cyberslayer',
-    r'نقش::: لینوکس | شبکه | دواپس | کدنویسی',
-    r'حال::: سای‌فای تاریک / متال / ریو',
+    r'نقش::: لینوکس | شبکه | دواپس | توسعه نرم‌افزار',
+    r'حال::: سای‌فای تاریک | متالهد | ریو',
     r'',
-    r'-- نقشه سیستم --',
+    r'-- چارچوب عملیات --',
     r'سیستم‌عامل .... CachyOS x86_64',
-    r'دستگاه ........ ThinkPad E15 Gen 2',
     r'کرنل .......... 6.18.8-1-cachyos',
     r'پردازنده ...... AMD Ryzen 5 4500U',
-    r'گرافیک ........ Radeon Vega iGPU',
     r'رم ............ 14.35 گیگابایت',
-    r'میزکار ........ KDE Plasma 6.5.5 | KWin Wayland',
-    r'نمایشگر ....... 24 اینچ خارجی + 16 اینچ داخلی',
+    r'میزکار ........ KDE Plasma 6.5.5 / KWin Wayland',
     r'',
-    r'-- تخصص --',
-    r'> بهینه‌سازی و عیب‌یابی لینوکس',
-    r'> شبکه کانتینر و روتینگ سرویس‌ها',
-    r'> DNS، ریورس پراکسی و سخت‌سازی زیرساخت',
-    r'> اتوماسیون CI/CD و استقرار',
-    r'> جریان کاری Bash، Python، Rust',
-    r'',
-    r'-- پروژه فعال --',
-    r'پروژه ......... waydroid-image-sw',
-    r'وضعیت ......... reborn/public',
-    r'اثر ........... سوییچ سریع بین A13 و TV',
-    r'',
-    r'نقل‌قول> هسته مشکی. لبه قرمز. ابزار دقیق.',
-    r'ارتباط> github.com/amir0zx',
-    r'مکان> ایران',
-    r'',
-    r'root@cyberpad:~$ _',
+    r'بنویس: help',
   ];
 
   @override
@@ -130,9 +107,13 @@ class _TerminalHomeState extends State<TerminalHome>
     )..repeat();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    _restartTyping();
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+    _startBootTyping();
   }
 
   @override
@@ -140,36 +121,137 @@ class _TerminalHomeState extends State<TerminalHome>
     _typingTimer?.cancel();
     _bgController.dispose();
     _pulseController.dispose();
+    _radarController.dispose();
     _scroll.dispose();
+    _cmdController.dispose();
     super.dispose();
   }
 
-  void _restartTyping() {
+  void _startBootTyping() {
     _typingTimer?.cancel();
     _lines.clear();
     _step = 0;
-    _typingTimer = Timer.periodic(const Duration(milliseconds: 70), (_) {
-      final List<String> script = _isFa ? _scriptFa : _scriptEn;
+    _typingTimer = Timer.periodic(const Duration(milliseconds: 65), (_) {
+      final script = _isFa ? _bootFa : _bootEn;
       if (_step >= script.length) {
         _typingTimer?.cancel();
+        _appendPrompt();
         return;
       }
       setState(() {
         _lines.add(script[_step]);
         _step += 1;
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) {
-          _scroll.jumpTo(_scroll.position.maxScrollExtent);
-        }
-      });
+      _scrollToBottom();
     });
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  String _prompt() => _isFa ? 'root@cyberpad:~/fa\$' : 'root@cyberpad:~\$';
+
+  void _appendPrompt() {
+    setState(() => _lines.add('${_prompt()} _'));
+    _scrollToBottom();
+  }
+
+  void _writeBlock(List<String> block) {
+    setState(() {
+      _lines.removeWhere((line) => line.trim() == '${_prompt()} _');
+      _lines.addAll(block);
+      _lines.add('${_prompt()} _');
+    });
+    _scrollToBottom();
+  }
+
+  void _executeCommand(String raw) {
+    final cmd = raw.trim();
+    if (cmd.isEmpty) return;
+
+    _typingTimer?.cancel();
+    final normalized = cmd.toLowerCase();
+    final out = <String>['${_prompt()} $cmd'];
+
+    switch (normalized) {
+      case 'help':
+        out.addAll(_isFa
+            ? [
+                'commands: help | whoami | skills | projects | contact | clear | lang',
+                'نکته: از دکمه‌های سریع هم می‌تونی استفاده کنی.',
+              ]
+            : [
+                'commands: help | whoami | skills | projects | contact | clear | lang',
+                'tip: quick-action buttons are interactive too.',
+              ]);
+        break;
+      case 'whoami':
+        out.addAll(_isFa
+            ? [
+                'amir talebi aka amirzx / cyberslayer',
+                'linux/networking/devops expert with automation-first mindset.',
+              ]
+            : [
+                'amir talebi aka amirzx / cyberslayer',
+                'linux/networking/devops expert with automation-first mindset.',
+              ]);
+        break;
+      case 'skills':
+        out.addAll(_isFa
+            ? [
+                'stack:',
+                ' - linux optimization and troubleshooting',
+                ' - container networking, routing, dns',
+                ' - ci/cd pipelines and infra automation',
+                ' - bash, python, rust engineering flows',
+              ]
+            : [
+                'stack:',
+                ' - linux optimization and troubleshooting',
+                ' - container networking, routing, dns',
+                ' - ci/cd pipelines and infra automation',
+                ' - bash, python, rust engineering flows',
+              ]);
+        break;
+      case 'projects':
+        out.addAll([
+          'featured:',
+          ' - waydroid-image-sw (reborn/public)',
+          ' - terminal-driven tooling and deployment helpers',
+        ]);
+        break;
+      case 'contact':
+        out.addAll([
+          'github: https://github.com/amir0zx',
+          'identity: amirzx / cyberslayer',
+        ]);
+        break;
+      case 'lang':
+        setState(() => _isFa = !_isFa);
+        _startBootTyping();
+        return;
+      case 'clear':
+        setState(() => _lines.clear());
+        _appendPrompt();
+        return;
+      default:
+        out.add(_isFa
+            ? 'command not found: $cmd'
+            : 'command not found: $cmd');
+    }
+
+    _writeBlock(out);
   }
 
   @override
   Widget build(BuildContext context) {
-    final Size size = MediaQuery.of(context).size;
-    final bool compact = size.width < 980;
+    final size = MediaQuery.of(context).size;
+    final compact = size.width < 980;
 
     return Scaffold(
       body: AnimatedBuilder(
@@ -178,13 +260,9 @@ class _TerminalHomeState extends State<TerminalHome>
           return Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment(-1 + _bgController.value * 0.5, -1),
-                end: Alignment(1, 1 - _bgController.value * 0.4),
-                colors: const [
-                  Color(0xFF030304),
-                  Color(0xFF13080B),
-                  Color(0xFF080809),
-                ],
+                begin: Alignment(-1 + _bgController.value * 0.45, -1),
+                end: Alignment(1, 1 - _bgController.value * 0.35),
+                colors: const [_Crimson.bg, _Crimson.bg2, Color(0xFF10080B)],
               ),
             ),
             child: Stack(
@@ -195,11 +273,15 @@ class _TerminalHomeState extends State<TerminalHome>
                 const Positioned.fill(child: _Scanlines()),
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                      compact ? 12 : 24, compact ? 16 : 26, compact ? 12 : 24, 16),
+                    compact ? 12 : 22,
+                    compact ? 14 : 22,
+                    compact ? 12 : 22,
+                    14,
+                  ),
                   child: Column(
                     children: [
                       _TopBar(isFa: _isFa, compact: compact),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       Expanded(
                         child: compact
                             ? _TerminalPanel(
@@ -207,31 +289,40 @@ class _TerminalHomeState extends State<TerminalHome>
                                 scroll: _scroll,
                                 isFa: _isFa,
                                 pulse: _pulseController,
+                                commandController: _cmdController,
                                 onToggleLanguage: () {
                                   setState(() => _isFa = !_isFa);
-                                  _restartTyping();
+                                  _startBootTyping();
                                 },
+                                onRunCommand: _executeCommand,
                               )
                             : Row(
                                 children: [
                                   SizedBox(
-                                    width: 320,
+                                    width: 330,
                                     child: _SideHud(
                                       isFa: _isFa,
                                       pulse: _pulseController,
+                                      radar: _radarController,
+                                      mode: _hudMode,
+                                      onModeChanged: (v) {
+                                        setState(() => _hudMode = v);
+                                      },
                                     ),
                                   ),
-                                  const SizedBox(width: 14),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: _TerminalPanel(
                                       lines: _lines,
                                       scroll: _scroll,
                                       isFa: _isFa,
                                       pulse: _pulseController,
+                                      commandController: _cmdController,
                                       onToggleLanguage: () {
                                         setState(() => _isFa = !_isFa);
-                                        _restartTyping();
+                                        _startBootTyping();
                                       },
+                                      onRunCommand: _executeCommand,
                                     ),
                                   ),
                                 ],
@@ -252,17 +343,19 @@ class _TerminalHomeState extends State<TerminalHome>
 class _TopBar extends StatelessWidget {
   final bool isFa;
   final bool compact;
-
   const _TopBar({required this.isFa, required this.compact});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xF0101012),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF7C0019), width: 1.1),
+        color: const Color(0xEE0C090A),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: _Crimson.edge),
+        boxShadow: const [
+          BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 8)),
+        ],
       ),
       child: Row(
         children: [
@@ -270,19 +363,19 @@ class _TopBar extends StatelessWidget {
             child: Text(
               'AMIRZX // CYBERSLAYER',
               style: TextStyle(
+                color: _Crimson.glow,
                 fontFamily: 'Orbitron',
-                color: const Color(0xFFFF4A4A),
                 fontSize: compact ? 14 : 18,
-                letterSpacing: 1.6,
+                letterSpacing: 1.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
           Text(
-            isFa ? 'پرتفولیو ترمینالی' : 'terminal portfolio',
+            isFa ? 'ترمینال نئوتاریک' : 'neo-dark terminal',
             style: TextStyle(
+              color: _Crimson.dim,
               fontFamily: isFa ? 'Vazirmatn' : 'JetBrains Mono',
-              color: const Color(0xFFB4B4B4),
               fontSize: compact ? 10 : 12,
             ),
           ),
@@ -294,50 +387,90 @@ class _TopBar extends StatelessWidget {
 
 class _SideHud extends StatelessWidget {
   final bool isFa;
-  final AnimationController pulse;
+  final Animation<double> pulse;
+  final Animation<double> radar;
+  final int mode;
+  final ValueChanged<int> onModeChanged;
 
-  const _SideHud({required this.isFa, required this.pulse});
+  const _SideHud({
+    required this.isFa,
+    required this.pulse,
+    required this.radar,
+    required this.mode,
+    required this.onModeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final labels = isFa ? ['NET', 'SYS', 'ANIME'] : ['NET', 'SYS', 'ANIME'];
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xEE09090A),
+        color: _Crimson.panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2A000A)),
+        border: Border.all(color: _Crimson.edge),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 120,
-            child: CustomPaint(
-              painter: _HudEmblemPainter(),
-              size: const Size(double.infinity, 120),
+            height: 134,
+            child: AnimatedBuilder(
+              animation: radar,
+              builder: (context, _) => CustomPaint(
+                painter: _RadarPainter(radar.value),
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          _HudTitle(text: isFa ? 'وضعیت شبکه' : 'network status'),
-          const SizedBox(height: 8),
-          _PulseBar(label: isFa ? 'latency' : 'latency', value: 0.35, pulse: pulse),
-          _PulseBar(label: isFa ? 'throughput' : 'throughput', value: 0.82, pulse: pulse),
-          _PulseBar(label: isFa ? 'uptime' : 'uptime', value: 0.94, pulse: pulse),
+          Wrap(
+            spacing: 6,
+            children: List.generate(labels.length, (i) {
+              final active = i == mode;
+              return ChoiceChip(
+                label: Text(labels[i]),
+                selected: active,
+                onSelected: (_) => onModeChanged(i),
+                selectedColor: _Crimson.crimson,
+                backgroundColor: const Color(0xFF130C0F),
+                labelStyle: TextStyle(
+                  color: active ? const Color(0xFFF9DCE2) : _Crimson.dim,
+                  fontFamily: 'JetBrains Mono',
+                  fontSize: 11,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: _Crimson.edge),
+                ),
+              );
+            }),
+          ),
           const SizedBox(height: 12),
-          _HudTitle(text: isFa ? 'حالت‌ها' : 'modes'),
-          const SizedBox(height: 8),
-          _Tag(text: isFa ? 'linux-first' : 'linux-first'),
-          _Tag(text: isFa ? 'infra-ops' : 'infra-ops'),
-          _Tag(text: isFa ? 'automation' : 'automation'),
-          _Tag(text: isFa ? 'red-team-aesthetic' : 'red-team-aesthetic'),
+          if (mode == 0) ...[
+            _HudBar(label: 'latency', value: 0.36, pulse: pulse),
+            _HudBar(label: 'throughput', value: 0.81, pulse: pulse),
+            _HudBar(label: 'stability', value: 0.92, pulse: pulse),
+          ],
+          if (mode == 1) ...[
+            _HudLine('stack', 'linux / infra / automation'),
+            _HudLine('langs', 'bash python rust'),
+            _HudLine('runtime', 'wayland + plasma'),
+            _HudLine('focus', 'network reliability'),
+          ],
+          if (mode == 2) ...[
+            _HudLine('aesthetic', 'blood-crimson matrix'),
+            _HudLine('theme', 'dark sci-fi anime'),
+            _HudLine('signal', 'metal + rave energy'),
+            _HudLine('state', 'hacker zen mode'),
+          ],
           const Spacer(),
           Text(
-            isFa ? 'build: neo-night // active' : 'build: neo-night // active',
+            isFa ? 'core online // crimson protocol' : 'core online // crimson protocol',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: const Color(0xFF9D9D9D),
-              fontFamily: isFa ? 'Vazirmatn' : 'JetBrains Mono',
-              fontSize: 11,
+            style: const TextStyle(
+              color: _Crimson.dim,
+              fontFamily: 'JetBrains Mono',
+              fontSize: 10.5,
             ),
           ),
         ],
@@ -346,59 +479,75 @@ class _SideHud extends StatelessWidget {
   }
 }
 
-class _HudTitle extends StatelessWidget {
-  final String text;
-  const _HudTitle({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFFFF6262),
-        fontFamily: 'JetBrains Mono',
-        fontWeight: FontWeight.w700,
-        fontSize: 12,
-        letterSpacing: 1.1,
-      ),
-    );
-  }
-}
-
-class _PulseBar extends StatelessWidget {
-  final String label;
-  final double value;
-  final Animation<double> pulse;
-
-  const _PulseBar({required this.label, required this.value, required this.pulse});
+class _HudLine extends StatelessWidget {
+  final String k;
+  final String v;
+  const _HudLine(this.k, this.v);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        children: [
+          Text(
+            '$k:',
+            style: const TextStyle(
+              color: _Crimson.dim,
+              fontFamily: 'JetBrains Mono',
+              fontSize: 10.5,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              v,
+              style: const TextStyle(
+                color: _Crimson.text,
+                fontFamily: 'JetBrains Mono',
+                fontSize: 10.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HudBar extends StatelessWidget {
+  final String label;
+  final double value;
+  final Animation<double> pulse;
+  const _HudBar({required this.label, required this.value, required this.pulse});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: AnimatedBuilder(
         animation: pulse,
         builder: (context, _) {
-          final double amp = (value * (0.8 + pulse.value * 0.2)).clamp(0.0, 1.0);
+          final amp = (value * (0.82 + pulse.value * 0.18)).clamp(0.0, 1.0);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color(0xFFB6B6B6),
-                  fontSize: 10,
+                  color: _Crimson.dim,
                   fontFamily: 'JetBrains Mono',
+                  fontSize: 10,
                 ),
               ),
               const SizedBox(height: 3),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  minHeight: 7,
                   value: amp,
-                  backgroundColor: const Color(0xFF1A1A1C),
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFFFF4040)),
+                  minHeight: 7,
+                  backgroundColor: const Color(0xFF1A1416),
+                  valueColor: const AlwaysStoppedAnimation(_Crimson.blood),
                 ),
               ),
             ],
@@ -409,72 +558,52 @@ class _PulseBar extends StatelessWidget {
   }
 }
 
-class _Tag extends StatelessWidget {
-  final String text;
-  const _Tag({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF140B0D),
-        border: Border.all(color: const Color(0xFF4B1A22)),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFFFF7A7A),
-          fontFamily: 'JetBrains Mono',
-          fontSize: 10.5,
-        ),
-      ),
-    );
-  }
-}
-
 class _TerminalPanel extends StatelessWidget {
   final List<String> lines;
   final ScrollController scroll;
   final bool isFa;
-  final AnimationController pulse;
+  final Animation<double> pulse;
+  final TextEditingController commandController;
   final VoidCallback onToggleLanguage;
+  final ValueChanged<String> onRunCommand;
 
   const _TerminalPanel({
     required this.lines,
     required this.scroll,
     required this.isFa,
     required this.pulse,
+    required this.commandController,
     required this.onToggleLanguage,
+    required this.onRunCommand,
   });
 
   @override
   Widget build(BuildContext context) {
+    final font = isFa ? 'Vazirmatn' : 'JetBrains Mono';
+
     return Directionality(
       textDirection: isFa ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xEF070708),
+          color: _Crimson.panel,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF2A0008)),
+          border: Border.all(color: _Crimson.edge),
         ),
         child: Column(
           children: [
             Row(
               children: [
-                const _Led(color: Color(0xFFFF3A3A)),
-                const _Led(color: Color(0xFFFFA300)),
-                const _Led(color: Color(0xFF44D36A)),
-                const SizedBox(width: 10),
-                Text(
-                  isFa ? 'shell://fa.cyberpad' : 'shell://en.cyberpad',
-                  style: const TextStyle(
-                    color: Color(0xFFFF3A3A),
+                const _Led(color: Color(0xFF8B1027)),
+                const _Led(color: Color(0xFF6A0D20)),
+                const _Led(color: Color(0xFF4F0B18)),
+                const SizedBox(width: 8),
+                const Text(
+                  'shell://crimson.core',
+                  style: TextStyle(
+                    color: _Crimson.glow,
                     fontFamily: 'JetBrains Mono',
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                 ),
                 const Spacer(),
@@ -483,55 +612,145 @@ class _TerminalPanel extends StatelessWidget {
                   child: Text(
                     isFa ? 'EN / فارسی' : 'فارسی / EN',
                     style: TextStyle(
-                      color: const Color(0xFFFF6464),
-                      fontFamily: isFa ? 'Vazirmatn' : 'JetBrains Mono',
+                      color: _Crimson.glow,
+                      fontFamily: font,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ],
             ),
-            const Divider(color: Color(0xFF1A1A1A), height: 14),
+            const Divider(color: Color(0xFF171114), height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _CmdChip(label: isFa ? 'whoami' : 'whoami', onTap: () => onRunCommand('whoami')),
+                _CmdChip(label: isFa ? 'skills' : 'skills', onTap: () => onRunCommand('skills')),
+                _CmdChip(label: isFa ? 'projects' : 'projects', onTap: () => onRunCommand('projects')),
+                _CmdChip(label: isFa ? 'contact' : 'contact', onTap: () => onRunCommand('contact')),
+                _CmdChip(label: isFa ? 'clear' : 'clear', onTap: () => onRunCommand('clear')),
+              ],
+            ),
+            const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
                 controller: scroll,
                 itemCount: lines.length,
-                itemBuilder: (context, index) => Text(
-                  lines[index],
+                itemBuilder: (context, i) => Text(
+                  lines[i],
                   textAlign: isFa ? TextAlign.right : TextAlign.left,
                   style: TextStyle(
-                    color: const Color(0xFFFF5B5B),
-                    fontFamily: isFa ? 'Vazirmatn' : 'JetBrains Mono',
-                    fontSize: isFa ? 17 : 16.5,
+                    color: _Crimson.text,
+                    fontFamily: font,
+                    fontSize: isFa ? 16.5 : 16,
                     height: 1.45,
                     shadows: const [
-                      Shadow(color: Color(0x55FF0000), blurRadius: 7),
+                      Shadow(color: Color(0x441D0000), blurRadius: 6),
                     ],
                   ),
                 ),
               ),
             ),
-            AnimatedBuilder(
-              animation: pulse,
-              builder: (context, _) {
-                final double opacity = 0.4 + pulse.value * 0.6;
-                return Align(
-                  alignment: isFa ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Opacity(
-                    opacity: opacity,
-                    child: const Text(
-                      '▋',
-                      style: TextStyle(
-                        color: Color(0xFFFF4040),
-                        fontSize: 18,
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text(
+                  '> ',
+                  style: TextStyle(
+                    color: _Crimson.glow,
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 16,
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: commandController,
+                    onSubmitted: (v) {
+                      onRunCommand(v);
+                      commandController.clear();
+                    },
+                    style: TextStyle(
+                      color: _Crimson.text,
+                      fontFamily: font,
+                      fontSize: 14,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: isFa ? 'command بنویس...' : 'type a command...',
+                      hintStyle: const TextStyle(
+                        color: _Crimson.dim,
+                        fontSize: 12,
                         fontFamily: 'JetBrains Mono',
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF110D0F),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(color: _Crimson.edge),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(color: _Crimson.edge),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        borderSide: const BorderSide(color: _Crimson.blood),
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                AnimatedBuilder(
+                  animation: pulse,
+                  builder: (context, _) {
+                    return Opacity(
+                      opacity: 0.45 + pulse.value * 0.55,
+                      child: const Text(
+                        '▋',
+                        style: TextStyle(
+                          color: _Crimson.glow,
+                          fontFamily: 'JetBrains Mono',
+                          fontSize: 18,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CmdChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _CmdChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF150E11),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _Crimson.edge),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: _Crimson.text,
+            fontSize: 11.5,
+            fontFamily: 'JetBrains Mono',
+          ),
         ),
       ),
     );
@@ -545,13 +764,13 @@ class _Led extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 10,
-      height: 10,
+      width: 9,
+      height: 9,
       margin: const EdgeInsets.only(right: 5),
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withOpacity(0.45), blurRadius: 5)],
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.42), blurRadius: 5)],
       ),
     );
   }
@@ -573,33 +792,25 @@ class _ParticlePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint red = Paint()..color = const Color(0x55FF3030);
-    final Paint faint = Paint()..color = const Color(0x30FFFFFF);
+    final red = Paint()..color = const Color(0x4D8A1A2F);
+    final faint = Paint()..color = const Color(0x24FFFFFF);
 
-    for (int i = 0; i < 90; i++) {
-      final double x = ((i * 97.0) + t * 400.0) % size.width;
-      final double y = ((i * 59.0) + t * 120.0) % size.height;
-      final double r = 0.6 + (i % 4) * 0.28;
-      canvas.drawCircle(Offset(x, y), r, i % 3 == 0 ? red : faint);
+    for (int i = 0; i < 100; i++) {
+      final x = ((i * 97.0) + t * 420.0) % size.width;
+      final y = ((i * 59.0) + t * 170.0) % size.height;
+      canvas.drawCircle(Offset(x, y), 0.8 + (i % 3) * 0.35, i % 2 == 0 ? red : faint);
     }
 
-    final Paint ring = Paint()
+    final ring = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.1
-      ..color = const Color(0x44FF2A2A);
+      ..strokeWidth = 1.0
+      ..color = const Color(0x337F2033);
 
-    final Offset center = Offset(size.width * 0.78, size.height * 0.18);
+    final c = Offset(size.width * 0.8, size.height * 0.2);
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: 64),
+      Rect.fromCircle(center: c, radius: 62),
       t * math.pi * 2,
-      math.pi * 1.35,
-      false,
-      ring,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: 92),
-      -t * math.pi * 2,
-      math.pi * 0.9,
+      math.pi,
       false,
       ring,
     );
@@ -609,52 +820,52 @@ class _ParticlePainter extends CustomPainter {
   bool shouldRepaint(covariant _ParticlePainter oldDelegate) => true;
 }
 
-class _HudEmblemPainter extends CustomPainter {
+class _RadarPainter extends CustomPainter {
+  final double t;
+  _RadarPainter(this.t);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect bounds = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
-    final Paint frame = Paint()
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = math.min(size.width, size.height) * 0.42;
+    final ring = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..color = const Color(0xCCFF4040);
-    final Paint thin = Paint()
+      ..strokeWidth = 1
+      ..color = const Color(0x668C1A2F);
+    final sweep = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = const Color(0x99FF6060);
+      ..strokeWidth = 2
+      ..color = const Color(0x99C22B45);
 
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(bounds, const Radius.circular(12)),
-      frame,
+    canvas.drawCircle(center, r, ring);
+    canvas.drawCircle(center, r * 0.66, ring);
+    canvas.drawCircle(center, r * 0.33, ring);
+    canvas.drawLine(Offset(center.dx - r, center.dy), Offset(center.dx + r, center.dy), ring);
+    canvas.drawLine(Offset(center.dx, center.dy - r), Offset(center.dx, center.dy + r), ring);
+
+    final a = t * math.pi * 2;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: r),
+      a - 0.3,
+      0.6,
+      false,
+      sweep,
     );
-    canvas.drawLine(
-      Offset(16, size.height * 0.5),
-      Offset(size.width - 16, size.height * 0.5),
-      thin,
-    );
 
-    final Offset c = Offset(size.width * 0.5, size.height * 0.5);
-    canvas.drawCircle(c, 20, frame);
-    canvas.drawCircle(c, 36, thin);
-    canvas.drawLine(Offset(c.dx - 42, c.dy), Offset(c.dx + 42, c.dy), thin);
-    canvas.drawLine(Offset(c.dx, c.dy - 42), Offset(c.dx, c.dy + 42), thin);
-
-    final text = TextPainter(
-      text: const TextSpan(
-        text: 'CYBERSLAYER // CORE',
-        style: TextStyle(
-          color: Color(0xFFFF6A6A),
-          fontSize: 12,
-          fontFamily: 'JetBrains Mono',
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: size.width - 24);
-    text.paint(canvas, const Offset(12, 12));
+    final dotPaint = Paint()..color = const Color(0x99D84B63);
+    for (int i = 0; i < 7; i++) {
+      final da = i * 0.9 + t * 1.2;
+      final rr = r * (0.2 + (i % 5) * 0.14);
+      canvas.drawCircle(
+        Offset(center.dx + math.cos(da) * rr, center.dy + math.sin(da) * rr),
+        2,
+        dotPaint,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _RadarPainter oldDelegate) => true;
 }
 
 class _Scanlines extends StatelessWidget {
@@ -664,7 +875,7 @@ class _Scanlines extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: Opacity(
-        opacity: 0.08,
+        opacity: 0.07,
         child: CustomPaint(
           painter: _ScanlinePainter(),
           size: Size.infinite,
@@ -677,9 +888,9 @@ class _Scanlines extends StatelessWidget {
 class _ScanlinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()..color = Colors.white;
+    final p = Paint()..color = Colors.white;
     for (double y = 0; y < size.height; y += 3.4) {
-      canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), paint);
+      canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), p);
     }
   }
 
